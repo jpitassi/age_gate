@@ -1,0 +1,4 @@
+name = Age Gate
+description = A module that provides a configurable age gate for restricting certain parts of a Drupal site.
+package = Other
+core = 7.x

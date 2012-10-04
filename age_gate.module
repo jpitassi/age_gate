@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * @file
+ * Hook implementations for the age_gate module.
+ */
+
+define('AGE_GATE_VISIBILITY_NOTLISTED', 0);
+define('AGE_GATE_VISIBILITY_LISTED', 1);
+
+/**
+ * Implements hook_theme().
+ */
+function age_gate_theme() {
+  return array(
+    'age_gate_popup' => array(
+      'variables' => array(
+        'header' => NULL,
+        'message' => NULL,
+        'widget' => NULL,
+      ),
+      'template' => 'age_gate',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function age_gate_menu() {
+  $items['admin/config/people/age_gate'] = array(
+    'title' => 'Age Gate Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('age_gate_admin_form'),
+    'access callback' => TRUE,
+    'file' => 'age_gate.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_page_alter().
+ */
+function age_gate_page_alter(&$page) {
+  // We don't need to do anything if the age gate cookie exists.
+  if (age_gate_check_cookie()) {
+    return;
+  }
+
+  drupal_add_js(drupal_get_path('module', 'age_gate') . '/age_gate.js');
+  drupal_add_css(drupal_get_path('module', 'age_gate') . '/age_gate.css');
+
+  $visibility = variable_get('age_gate_visibility', AGE_GATE_VISIBILITY_NOTLISTED);
+  $pages = variable_get('age_gate_pages', '');
+  $content_types = variable_get('age_gate_content_types', array());
+  $selected_types = array();
+  $verify = FALSE;
+
+  foreach ($content_types as $type => $status) {
+    if ($status) {
+      $selected_types[] = $type;
+    }
+  }
+
+  // Determine if this page should be behind age gate.
+  switch ($visibility) {
+    case AGE_GATE_VISIBILITY_NOTLISTED:
+      if (!drupal_match_path(drupal_get_path_alias($_GET['q']), $pages)) {
+        $verify = TRUE;
+      }
+      break;
+
+    case AGE_GATE_VISIBILITY_LISTED:
+      if (drupal_match_path(drupal_get_path_alias($_GET['q']), $pages)) {
+        $verify = TRUE;
+      }
+      break;
+  }
+
+  // Check if we're on a restricted node type.
+  if (!empty($selected_types)) {
+    $node = menu_get_object();
+    if ($node && in_array($node->type, $selected_types)) {
+      $verify = TRUE;
+    }
+  }
+
+  if ($verify) {
+    // Add themed popup to bottom of the page.
+    $page['page_bottom']['age_gate'] = array(
+      '#markup' => theme('age_gate_popup'),
+    );
+
+    $message = variable_get('age_gate_message', array('value' => '', 'format' => NULL));
+    $message = check_markup($message['value'], $message['format']);
+
+    // Add module variables to JS.
+    drupal_add_js(array('AgeGate' => array(
+      'useOverlay' => variable_get('age_gate_use_overlay', TRUE),
+      'cookieLifespan' => variable_get('age_gate_cookie_lifespan', 0),
+      'widget' => variable_get('age_gate_widget', 'boolean'),
+      'message' => $message,
+    )), 'setting');
+  }
+}
+
+/**
+ * Preprocess function for age gate popup.
+ * @todo: Make this pluggable/themeable.
+ */
+function age_gate_preprocess_age_gate_popup(&$vars) {
+  $widget = variable_get('age_gate_widget', 'boolean');
+  $min_age = variable_get('age_gate_minimum_age', 18);
+  $vars['widget'] = '';
+  $vars['header'] = variable_get('age_gate_header', '');
+  $message = variable_get('age_gate_message', array('value' => '', 'format' => NULL));
+  $vars['message'] = check_markup($message['value'], $message['format']);
+  $vars['overlay'] = variable_get('age_gate_use_overlay', TRUE);
+
+  switch ($widget) {
+    case 'boolean':
+      $vars['widget'] .= '<div class="age_gate_widget boolean"><form submit="return false;">';
+      $vars['widget'] .= '<input value="' . t('Yes') . '"" type="submit" class="form-submit" onclick="AgeGate.confirm();" class="yes">' . t('I am older than !min years of age', array('!min' => $min_age)) . '</div>';
+      $vars['widget'] .= '<input value="' . t('No') . '" type="submit" class="form-submit" onclick="AgeGate.deny();" class="no">' . t('I am younger than !min years of age', array('!min' => $min_age)) . '</div>';
+      $vars['widget'] .= '</form></div>';
+      break;
+
+    case 'dateselect':
+      $years = array();
+      $months = array();
+      $first = 1900;
+      $last = date('Y', time());
+
+      for ($y = $first; $y <= $last; $y++) {
+        $years[] = '<option value="' . $y . '">' . $y . '</option>';
+      }
+
+      $vars['widget'] .= '<div class="age_gate_widget dateselect"><form onsubmit="return false;">';
+      $vars['widget'] .= '<label for="month">Month:<select class="form-select" name="month"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select></label>';
+      $vars['widget'] .= '<label for="day">Day:<select class="form-select" name="day"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select></label>';
+      $vars['widget'] .= '<label for="year">Year:<select class="form-select" name="year">' . implode('', $years) . '</select></label>';
+      $vars['widget'] .= '<input class="form-submit" type="submit" value="' . t('Verify') . '" onclick="AgeGate.verify();" />';
+      $vars['widget'] .= '<div class="clear"></div>';
+      $vars['widget'] .= '</form></div>';
+      break;
+
+    case 'datepicker':
+      $vars['widget'] .= '<div class="age_gate_widget dateselect"><form onsubmit="return false;">';
+      $vars['widget'] .= '<label for="birthday"><input class="form-text datepicker" name="birthday" type="text" /></label>';
+      $vars['widget'] .= '</form></div>';
+      break;
+
+    case 'javascript':
+      // No themeing needed.
+      break;
+  }
+}
+
+/**
+ * Force age verification on this page.
+ */
+function age_gate_verify_age() {
+  $widget = variable_get('age_gate_widget', 'boolean');
+
+  // Add jQuery datepicker library.
+  if ($widget == 'datepicker') {
+    drupal_add_library('system','ui.datepicker');
+  }
+
+  drupal_add_js(drupal_get_path('module', 'age_gate') . '/age_gate.js');
+}
+
+/**
+ * Check for existence of the age gate cookie.
+ *
+ * @return boolean
+ *   TRUE: user has age gate cookie
+ *   FALSE: user does not have age gate cookie
+ */
+function age_gate_check_cookie() {
+  return isset($_COOKIE['age_gate']);
+}
+
+/**
+ * Set the age gate cookie for the current user.
+ */
+function age_gate_set_cookie() {
+  $lifespan = variable_get('age_gate_cookie_lifespan', 0);
+  setcookie('age_gate', 1, time() + (86400 * $lifespan));
+}
