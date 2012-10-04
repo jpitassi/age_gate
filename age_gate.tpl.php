@@ -6,7 +6,7 @@
  *
  * Available variables:
  * - $header: The header text to output in the popup.
- * - $message: The age verificatio message to display to the user.
+ * - $message: The age verification message to display to the user.
  * - $widget: The age verification widget.
  */
 ?>
