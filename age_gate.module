@@ -92,14 +92,17 @@ function age_gate_page_alter(&$page) {
       '#markup' => theme('age_gate_popup'),
     );
 
+    $widget = variable_get('age_gate_widget', 'boolean');
     $message = variable_get('age_gate_message', array('value' => '', 'format' => NULL));
-    $message = check_markup($message['value'], $message['format']);
+    $message = ($widget != 'javascript') ? check_markup($message['value'], $message['format']) : check_plain($message['value']);
 
     // Add module variables to JS.
     drupal_add_js(array('AgeGate' => array(
       'useOverlay' => variable_get('age_gate_use_overlay', TRUE),
       'cookieLifespan' => variable_get('age_gate_cookie_lifespan', 0),
-      'widget' => variable_get('age_gate_widget', 'boolean'),
+      'minimumAge' => variable_get('age_gate_minimum_age', 18),
+      'denyRedirect' => variable_get('age_gate_deny_redirect', '/'),
+      'widget' => $widget,
       'message' => $message,
     )), 'setting');
   }
@@ -120,7 +123,7 @@ function age_gate_preprocess_age_gate_popup(&$vars) {
 
   switch ($widget) {
     case 'boolean':
-      $vars['widget'] .= '<div class="age_gate_widget boolean"><form submit="return false;">';
+      $vars['widget'] .= '<div class="age_gate_widget boolean"><form onsubmit="return false;">';
       $vars['widget'] .= '<input value="' . t('Yes') . '"" type="submit" class="form-submit" onclick="AgeGate.confirm();" class="yes">' . t('I am older than !min years of age', array('!min' => $min_age)) . '</div>';
       $vars['widget'] .= '<input value="' . t('No') . '" type="submit" class="form-submit" onclick="AgeGate.deny();" class="no">' . t('I am younger than !min years of age', array('!min' => $min_age)) . '</div>';
       $vars['widget'] .= '</form></div>';

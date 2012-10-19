@@ -62,8 +62,15 @@ function age_gate_admin_form() {
     '#type' => 'textfield',
     '#field_suffix' => t('Days'),
     '#size' => 6,
-    '#default_value' => variable_get('age_gate_cookie_lifespan', ''),
+    '#default_value' => variable_get('age_gate_cookie_lifespan', 0),
     '#description' => t('The number of days before the cookie set by age gate module expires, and the user must verify their age again (0 days will expire at end of session).'),
+  );
+
+  $form['options']['age_gate_deny_redirect'] = array(
+    '#title' => t('Redirect URL'),
+    '#type' => 'textfield',
+    '#default_value' => variable_get('age_gate_deny_redirect', '/'),
+    '#description' => t('The URL to redirect the user to if their age verification fails.'),
   );
 
   $form['options']['age_gate_widget'] = array(
@@ -71,9 +78,9 @@ function age_gate_admin_form() {
     '#type' => 'select',
     '#options' => array(
       'boolean' => t('Yes/No Buttons'),
-      'dateselect' => t('Date Dropdown Selector'),
-      'datepicker' => t('jQuery Datepicker'),
-      'javascript' => t('Javascript Confirm Box'),
+      //'dateselect' => t('Date Dropdown Selector'),
+      //'datepicker' => t('jQuery Datepicker'),
+      //'javascript' => t('Javascript Confirm Box'),
     ),
     '#default_value' => variable_get('age_gate_widget', 'boolean'),
     '#description' => t('The type of age verification the user must complete in order to pass the age gate.'),
